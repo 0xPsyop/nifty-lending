@@ -132,8 +132,6 @@ contract NiftyLoan {
        Loan memory loan = loans[_nftAddress][_tokenId];
        require(msg.value == loan.requiredAmount, "Not enough money to lend");
        IERC721(_nftAddress).safeTransferFrom(loan.borrower, address(this) , _tokenId );
-       (bool sent, ) = address(this).call{value: msg.value}("");
-       require(sent, "Failed to send Ether");
        loan.isActive == true;
        emit FundsEscrowed(loan, msg.value );
 
@@ -155,8 +153,15 @@ contract NiftyLoan {
     
     //@dev repay the loan by returning the interest+fees to the owner and recieving back the ERC721
     function repayLoan(address _nftAddress , uint256 _tokenId) external payable
-    {
-       uint256 swapFee = getLoanFees();
+    isOwner(_nftAddress, _tokenId)
+    isListed(_nftAddress, _tokenId) 
+    isActive(_nftAddress, _tokenId){
+      
+      Loan memory loan = loans[_nftAddress][_tokenId];
+      uint256 interestFee = getInterestFees(loan.requiredAmount, loan.interestPercentage, loan.loanTerm);
+      require(msg.value >= (interestFee + loan.requiredAmount));
+
+       
        
 
    }
@@ -179,7 +184,7 @@ contract NiftyLoan {
         }*/
    
    //@dev calculate the total interest after the loan term based on the APR and loan Amount
-    function getInterestFees(uint256 _requiredCollateral, uint256 _interestPercentage, uint256 _loanTerm) public view returns(uint256 _interestCharge){
+    function getInterestFees(uint256 _requiredAmount, uint256 _interestPercentage, uint256 _loanTerm) public view returns(uint256 _interestCharge){
 
     }
 
