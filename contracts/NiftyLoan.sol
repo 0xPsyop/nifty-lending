@@ -36,6 +36,7 @@ contract NiftyLoan {
    event LoanUpdated(address indexed _nftAddress, uint256 indexed _tokenId, uint256 _newRequiredAmount, uint256 _newInterestPercentage, uint256 _newLoanTerm);
    event LoanActivated(Loan loan);
    event FundsEscrowed(Loan loan, uint256 Amount);
+   event LoanFunded(Loan loan);
 
     // @dev checks whether the token is already listed as a loan 
     modifier isListed(address _nftAddress, uint256 _tokenId) {
@@ -57,9 +58,15 @@ contract NiftyLoan {
       _;
     }
      
-    modifier isActive(address _nftAddress, uint256 _tokenId){
+    modifier isNotActive(address _nftAddress, uint256 _tokenId){
       Loan memory loan = loans[_nftAddress][_tokenId];
       if(loan.isActive) revert LoanIsActive(_nftAddress, _tokenId);
+      _;
+    }
+
+    modifier isActive(address _nftAddress, uint256 _tokenId){
+      Loan memory loan = loans[_nftAddress][_tokenId];
+      if(!loan.isActive) revert LoanIsActive(_nftAddress, _tokenId);
       _;
     }
    
@@ -105,7 +112,7 @@ contract NiftyLoan {
       uint256 _newInterestPercentage,
       uint256 _newLoanTerm
 
-    ) public isOwner(_nftAddress, _tokenId) isListed(_nftAddress, _tokenId) isActive(_nftAddress, _tokenId){
+    ) public isOwner(_nftAddress, _tokenId) isListed(_nftAddress, _tokenId) isNotActive(_nftAddress, _tokenId){
       
       require(_newRequiredAmount > 0 && _newLoanTerm > 0 && _newInterestPercentage> 0 , "Not a valid loan");
       
@@ -118,24 +125,39 @@ contract NiftyLoan {
     }
 
     // @dev transfer the loan amount from the lender to the contract and lock the ERC721 in the contract
-    function escrow(address _nftAddress , uint256 _tokenId) external payable isListed(_nftAddress, _tokenId) isActive(_nftAddress, _tokenId){
+    function escrow(address _nftAddress , uint256 _tokenId) external payable 
+     isListed(_nftAddress, _tokenId)
+     isNotActive(_nftAddress, _tokenId){
+
        Loan memory loan = loans[_nftAddress][_tokenId];
        require(msg.value == loan.requiredAmount, "Not enough money to lend");
        IERC721(_nftAddress).safeTransferFrom(loan.borrower, address(this) , _tokenId );
        (bool sent, ) = address(this).call{value: msg.value}("");
        require(sent, "Failed to send Ether");
+       loan.isActive == true;
        emit FundsEscrowed(loan, msg.value );
+
     }
     
    // @dev transfers the money from the contract to the already escrowed NFT borrower
-    function requestLoanAmount() external{
-
-    }
+    function requestLoanAmount(address _nftAddress , uint256 _tokenId)  external 
+    isOwner(_nftAddress, _tokenId)
+    isListed(_nftAddress, _tokenId) 
+    isActive(_nftAddress, _tokenId){
+       
+       Loan memory loan = loans[_nftAddress][_tokenId];
+       require(address(this).balance >= loan.requiredAmount);
+       (bool sent, ) = (loan.borrower).call{value: loan.requiredAmount}("");
+       require(sent, "Failed to send Ether");
+      
+       emit LoanFunded(loan);
+ }
     
     //@dev repay the loan by returning the interest+fees to the owner and recieving back the ERC721
-    function repayLoan(address _nftAddress , uint256 _tokenId) external payable{
+    function repayLoan(address _nftAddress , uint256 _tokenId) external payable
+    {
        uint256 swapFee = getLoanFees();
-
+       
 
    }
     
