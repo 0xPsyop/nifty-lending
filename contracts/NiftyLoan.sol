@@ -251,6 +251,8 @@ contract NiftyLoan {
     function getInterestFees(
         uint256 _requiredAmount,
         uint256 _interestPercentage,
+
+        
         uint256 _loanTerm
     ) public view returns (uint256 _interestCharge) {}
 
