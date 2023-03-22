@@ -27,6 +27,7 @@ contract NiftyLoan {
     error LoanAlreadyListed(address _nftAddress, uint256 _tokenId);
     error LoanNotListed(address _nftAddress, uint256 _tokenId);
     error LoanIsActive(address _nftAddress, uint256 _tokenId);
+    error LoanIsNotActive(address _nftAddress, uint256 _tokenId);
     error NotOwner();
 
     event NewLoanCreated(
@@ -79,7 +80,12 @@ contract NiftyLoan {
 
     modifier isActive(address _nftAddress, uint256 _tokenId) {
         Loan memory loan = loans[_nftAddress][_tokenId];
-        if (!loan.isActive) revert LoanIsActive(_nftAddress, _tokenId);
+        if (!loan.isActive) revert LoanIsNotActive(_nftAddress, _tokenId);
+        _;
+    }
+    modifier isExpired(address _nftAddress, uint256 _tokenId){
+        Loan memory loan = loans[_nftAddress][_tokenId];
+        if(block.timestamp > loan.startDate + loan.loanTerm days) revert LoanIsNotExpired();
         _;
     }
 
@@ -93,7 +99,7 @@ contract NiftyLoan {
         uint256 interestPercentage;
         uint256 loanTerm;
         bool isActive;
-        uint256 activeTerm;
+        uint256 startDate;
     }
 
     /* @dev create a loan listing with all the required details
@@ -182,14 +188,9 @@ contract NiftyLoan {
     {
         Loan memory loan = loans[_nftAddress][_tokenId];
         require(msg.value >= loan.requiredAmount, "Not enough money to lend");
-        
-        IERC721(_nftAddress).safeTransferFrom(
-            loan.borrower,
-            address(this),
-            _tokenId
-        );
         loan.isActive == true;
-        loan.activeTerm  = block.timestamp;
+        loan.startDate  = block.timestamp;
+        IERC721(_nftAddress).safeTransferFrom(loan.borrower, address(this), _tokenId);
         emit FundsEscrowed(loan, msg.value);
     }
 
@@ -223,7 +224,8 @@ contract NiftyLoan {
         isActive(_nftAddress, _tokenId)
     {
         Loan memory loan = loans[_nftAddress][_tokenId];
-        require(block.timestamp >= loan.activeTerm +loan. );
+        uint256 activeTerm = block.timestamp - loan.startDate;
+        require(loan.loanTerm days >= activeTerm );
         uint256 interestFee = getInterestFees(
             loan.requiredAmount,
             loan.interestPercentage,
@@ -231,12 +233,16 @@ contract NiftyLoan {
         );
         require(msg.value >= (interestFee + loan.requiredAmount));
         loan.isActive = false;
+        IERC721(_nftAddress).safeTransferFrom(address(this), loan.borrower, _tokenId);
     }
 
     //@dev liquidate the borrowers NFT if he didn't repay the loan in the specified time period
-    function liquidate() external {}
+    function liquidate( 
+        address _nftAddress,
+        uint256 _tokenId) external isActive( address _nftAddress,uint256 _tokenId) isExpired(address _nftAddress,uint256 _tokenId) {
 
-    // calculate the fees required to facilitate the loan
+        }
+   //  calculate the fees required to facilitate the loan
     function getLoanFees() internal view returns (uint256 _swapFee) {}
 
     //@dev calculate the APR based on the loan time period, fees & interest
@@ -250,9 +256,7 @@ contract NiftyLoan {
     //@dev calculate the total interest after the loan term based on the APR and loan Amount
     function getInterestFees(
         uint256 _requiredAmount,
-        uint256 _interestPercentage,
-
-        
+        uint256 _interestPercentage, 
         uint256 _loanTerm
     ) public view returns (uint256 _interestCharge) {}
 
