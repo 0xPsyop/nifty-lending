@@ -93,6 +93,7 @@ contract NiftyLoan {
         uint256 interestPercentage;
         uint256 loanTerm;
         bool isActive;
+        uint256 activeTerm;
     }
 
     /* @dev create a loan listing with all the required details
@@ -119,14 +120,11 @@ contract NiftyLoan {
             _requiredAmount,
             _interestPercentage,
             _loanTerm,
-            false
+            false,
+            0
         );
         loans[_nftAddress][_tokenId] = newLoan;
-        IERC721(_nftAddress).safeTransferFrom(
-            newLoan.borrower,
-            address(this),
-            _tokenId
-        );
+        
 
         emit NewLoanCreated(
             _nftAddress,
@@ -183,8 +181,15 @@ contract NiftyLoan {
         isNotActive(_nftAddress, _tokenId)
     {
         Loan memory loan = loans[_nftAddress][_tokenId];
-        require(msg.value == loan.requiredAmount, "Not enough money to lend");
+        require(msg.value >= loan.requiredAmount, "Not enough money to lend");
+        
+        IERC721(_nftAddress).safeTransferFrom(
+            loan.borrower,
+            address(this),
+            _tokenId
+        );
         loan.isActive == true;
+        loan.activeTerm  = block.timestamp;
         emit FundsEscrowed(loan, msg.value);
     }
 
@@ -218,6 +223,7 @@ contract NiftyLoan {
         isActive(_nftAddress, _tokenId)
     {
         Loan memory loan = loans[_nftAddress][_tokenId];
+        require(block.timestamp >= loan.activeTerm +loan. );
         uint256 interestFee = getInterestFees(
             loan.requiredAmount,
             loan.interestPercentage,
