@@ -28,6 +28,7 @@ contract NiftyLoan {
     error LoanNotListed(address _nftAddress, uint256 _tokenId);
     error LoanIsActive(address _nftAddress, uint256 _tokenId);
     error LoanIsNotActive(address _nftAddress, uint256 _tokenId);
+    error LoanIsNotExpired();
     error NotOwner();
 
     event NewLoanCreated(
@@ -85,7 +86,7 @@ contract NiftyLoan {
     }
     modifier isExpired(address _nftAddress, uint256 _tokenId){
         Loan memory loan = loans[_nftAddress][_tokenId];
-        if(block.timestamp > loan.startDate + loan.loanTerm days) revert LoanIsNotExpired();
+        if(block.timestamp > loan.startDate + loan.loanTerm ) revert LoanIsNotExpired();
         _;
     }
 
@@ -225,7 +226,7 @@ contract NiftyLoan {
     {
         Loan memory loan = loans[_nftAddress][_tokenId];
         uint256 activeTerm = block.timestamp - loan.startDate;
-        require(loan.loanTerm days >= activeTerm );
+        require(loan.loanTerm >= activeTerm );
         uint256 interestFee = getInterestFees(
             loan.requiredAmount,
             loan.interestPercentage,
@@ -239,7 +240,7 @@ contract NiftyLoan {
     //@dev liquidate the borrowers NFT if he didn't repay the loan in the specified time period
     function liquidate( 
         address _nftAddress,
-        uint256 _tokenId) external isActive( address _nftAddress,uint256 _tokenId) isExpired(address _nftAddress,uint256 _tokenId) {
+        uint256 _tokenId) external isActive( _nftAddress, _tokenId) isExpired( _nftAddress, _tokenId) {
 
         }
    //  calculate the fees required to facilitate the loan
