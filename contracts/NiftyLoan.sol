@@ -49,6 +49,7 @@ contract NiftyLoan {
     event LoanActivated(Loan loan);
     event FundsEscrowed(Loan loan, uint256 Amount);
     event LoanFunded(Loan loan);
+    event Liquidated(Loan loan);
 
     // @dev checks whether the token is already listed as a loan
     modifier isListed(address _nftAddress, uint256 _tokenId) {
@@ -227,12 +228,7 @@ contract NiftyLoan {
         Loan memory loan = loans[_nftAddress][_tokenId];
         uint256 activeTerm = block.timestamp - loan.startDate;
         require(loan.loanTerm >= activeTerm );
-        uint256 interestFee = getInterestFees(
-            loan.requiredAmount,
-            loan.interestPercentage,
-            loan.loanTerm
-        );
-        require(msg.value >= (interestFee + loan.requiredAmount));
+        require(msg.value >=  loan.requiredAmount);
         loan.isActive = false;
         IERC721(_nftAddress).safeTransferFrom(address(this), loan.borrower, _tokenId);
     }
@@ -241,10 +237,11 @@ contract NiftyLoan {
     function liquidate( 
         address _nftAddress,
         uint256 _tokenId) external isActive( _nftAddress, _tokenId) isExpired( _nftAddress, _tokenId) {
-
+             Loan memory loan = loans[_nftAddress][_tokenId];
+             IERC721(_nftAddress).safeTransferFrom(msg.sender , address(this), _tokenId);
+             delete loan;
+             emit Liquidated(loan);
         }
-   //  calculate the fees required to facilitate the loan
-    function getLoanFees() internal view returns (uint256 _swapFee) {}
 
     //@dev calculate the APR based on the loan time period, fees & interest
     /*    function getAPR(uint256 _requiredAmount, uint256  _interestPercentage, uint256 _loanTerm) public view returns(uint256 _apr){
