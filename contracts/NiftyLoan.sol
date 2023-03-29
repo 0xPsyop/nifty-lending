@@ -85,9 +85,10 @@ contract NiftyLoan {
         if (!loan.isActive) revert LoanIsNotActive(_nftAddress, _tokenId);
         _;
     }
-    modifier isExpired(address _nftAddress, uint256 _tokenId){
+    modifier isExpired(address _nftAddress, uint256 _tokenId) {
         Loan memory loan = loans[_nftAddress][_tokenId];
-        if(block.timestamp > loan.startDate + loan.loanTerm ) revert LoanIsNotExpired();
+        if (block.timestamp > loan.startDate + (loan.loanTerm * 86400))
+            revert LoanIsNotExpired();
         _;
     }
 
@@ -132,7 +133,6 @@ contract NiftyLoan {
             0
         );
         loans[_nftAddress][_tokenId] = newLoan;
-        
 
         emit NewLoanCreated(
             _nftAddress,
@@ -191,8 +191,12 @@ contract NiftyLoan {
         Loan memory loan = loans[_nftAddress][_tokenId];
         require(msg.value >= loan.requiredAmount, "Not enough money to lend");
         loan.isActive == true;
-        loan.startDate  = block.timestamp;
-        IERC721(_nftAddress).safeTransferFrom(loan.borrower, address(this), _tokenId);
+        loan.startDate = block.timestamp;
+        IERC721(_nftAddress).safeTransferFrom(
+            loan.borrower,
+            address(this),
+            _tokenId
+        );
         emit FundsEscrowed(loan, msg.value);
     }
 
@@ -227,37 +231,70 @@ contract NiftyLoan {
     {
         Loan memory loan = loans[_nftAddress][_tokenId];
         uint256 activeTerm = block.timestamp - loan.startDate;
-        require(loan.loanTerm >= activeTerm );
-        uint256 interestFee = getInterestFees(loan.requiredAmount, loan.interestPercentage, activeTerm);
-        require(msg.value >= ( loan.requiredAmount + interestFee ), "Not enough money to repay the loan");
+        require((loan.loanTerm * 86400) >= activeTerm);
+        uint256 interest = getInterest(
+            loan.requiredAmount,
+            loan.interestPercentage,
+            activeTerm
+        );
+        require(
+            msg.value >= (loan.requiredAmount + interest),
+            "Not enough money to repay the loan"
+        );
         loan.isActive = false;
-        IERC721(_nftAddress).safeTransferFrom(address(this), loan.borrower, _tokenId);
+        IERC721(_nftAddress).safeTransferFrom(
+            address(this),
+            loan.borrower,
+            _tokenId
+        );
     }
 
     //@dev liquidate the borrowers NFT if he didn't repay the loan in the specified time period
-    function liquidate( 
+    function liquidate(
         address _nftAddress,
-        uint256 _tokenId) external isActive( _nftAddress, _tokenId) isExpired( _nftAddress, _tokenId) {
-             Loan memory loan = loans[_nftAddress][_tokenId];
-             IERC721(_nftAddress).safeTransferFrom(msg.sender , address(this), _tokenId);
-             delete loan;
-             emit Liquidated(loan);
-        }
+        uint256 _tokenId
+    )
+        external
+        isActive(_nftAddress, _tokenId)
+        isExpired(_nftAddress, _tokenId)
+    {
+        Loan memory loan = loans[_nftAddress][_tokenId];
+        IERC721(_nftAddress).safeTransferFrom(
+            msg.sender,
+            address(this),
+            _tokenId
+        );
+        delete loan;
+        emit Liquidated(loan);
+    }
 
-    //@dev calculate the APR based on the loan time period, fees & interest
-    /*    function getAPR(uint256 _requiredAmount, uint256  _interestPercentage, uint256 _loanTerm) public view returns(uint256 _apr){
-          uint256 swapFee = getLoanFees();
-          uint256 interestCharge = getInterestCharge(_requiredAmount,_interestPercentage, _loanTerm);
-          uint256 apr = (interestCharge + swapFee)* 36500 /(_requiredAmount*_loanTerm);
-          return apr;
-        }*/
+    //@dev calculate the APR based on the loan time period & interest
+    function getAPR(
+        uint256 _requiredAmount,
+        uint256 _interestPercentage,
+        uint256 _loanTerm
+    ) public pure returns (uint256 _apr) {
+        uint256 interest = getInterest(
+            _requiredAmount,
+            _interestPercentage,
+            _loanTerm
+        );
+        uint256 apr = ((interest * 36500) / (_requiredAmount * _loanTerm));
+        return apr;
+    }
 
     //@dev calculate the total interest after the loan term based on the APR and loan Amount
-    function getInterestFees(
+    function getInterest(
         uint256 _requiredAmount,
-        uint256 _interestPercentage, 
+        uint256 _interestPercentage,
         uint256 _loanTerm
-    ) public view returns (uint256 _interestCharge) {}
+    ) public pure returns (uint256 interestCharge) {
+        interestCharge =
+            _requiredAmount *
+            _interestPercentage *
+            (_loanTerm / 365);
+        return interestCharge;
+    }
 
     receive() external payable {}
 

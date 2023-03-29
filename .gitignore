@@ -4,9 +4,9 @@ coverage
 coverage.json
 typechain
 typechain-types
+PoolTogether.sol
 
 # Hardhat files
 cache
 artifacts
 
-PoolTogether.sol
