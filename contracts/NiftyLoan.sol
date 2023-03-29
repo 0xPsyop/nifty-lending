@@ -228,7 +228,8 @@ contract NiftyLoan {
         Loan memory loan = loans[_nftAddress][_tokenId];
         uint256 activeTerm = block.timestamp - loan.startDate;
         require(loan.loanTerm >= activeTerm );
-        require(msg.value >=  loan.requiredAmount);
+        uint256 interestFee = getInterestFees(loan.requiredAmount, loan.interestPercentage, activeTerm);
+        require(msg.value >= ( loan.requiredAmount + interestFee ), "Not enough money to repay the loan");
         loan.isActive = false;
         IERC721(_nftAddress).safeTransferFrom(address(this), loan.borrower, _tokenId);
     }
