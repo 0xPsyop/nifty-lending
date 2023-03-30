@@ -50,6 +50,7 @@ contract NiftyLoan {
     event FundsEscrowed(Loan loan, uint256 Amount);
     event LoanFunded(Loan loan);
     event Liquidated(Loan loan);
+    event LoanDeleted(Loan loan);
 
     // @dev checks whether the token is already listed as a loan
     modifier isListed(address _nftAddress, uint256 _tokenId) {
@@ -176,6 +177,21 @@ contract NiftyLoan {
             _newInterestPercentage,
             _newLoanTerm
         );
+    }
+
+    // @dev delete the loan listing
+    function deleteLoan(
+        address _nftAddress,
+        uint256 _tokenId
+    )
+        public
+        isOwner(_nftAddress, _tokenId)
+        isListed(_nftAddress, _tokenId)
+        isNotActive(_nftAddress, _tokenId)
+    {
+        Loan memory loan = loans[_nftAddress][_tokenId];
+        delete loan;
+        emit LoanDeleted(loan);
     }
 
     // @dev transfer the loan amount from the lender to the contract and lock the ERC721 in the contract
