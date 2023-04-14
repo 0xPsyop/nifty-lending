@@ -1,6 +1,7 @@
 This is a simple solidity contract to facilitiate loans using ERC721 tokens as collateral. 
 
 In V1 we can't suggest custom offers for listed loans. Only approve the already listed Loan terms. NO ERC20 loans. only ETH.
+
       1) The NFT owner can create a loan offer using their NFT as the collateral 
       2) The Lender can lend the required Amount for the borrower (NFT owner) and can earn an interest based on the loan specs
       3) The NFT is then escrowed in this contract and the funds are transferred to the borrower(NFT owner)
